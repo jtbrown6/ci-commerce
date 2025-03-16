@@ -1,0 +1,191 @@
+version: '3.8'
+
+services:
+  # API Gateway
+  api-gateway:
+    build:
+      context: ./api-gateway
+    container_name: api-gateway
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+    depends_on:
+      - user-service
+      - product-service
+      - cart-service
+      - order-service
+    networks:
+      - microservices-network
+
+  # User Service
+  user-service:
+    build:
+      context: ./services/user-service
+    container_name: user-service
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=development
+      - PORT=3001
+      - DB_HOST=user-db
+      - DB_PORT=5432
+      - DB_NAME=user_service_db
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
+    depends_on:
+      - user-db
+    networks:
+      - microservices-network
+
+  # User Service Database
+  user-db:
+    image: postgres:14-alpine
+    container_name: user-db
+    ports:
+      - "5433:5432"
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=user_service_db
+    volumes:
+      - user-db-data:/var/lib/postgresql/data
+    networks:
+      - microservices-network
+
+  # Product Service
+  product-service:
+    build:
+      context: ./services/product-service
+    container_name: product-service
+    ports:
+      - "3002:3002"
+    environment:
+      - NODE_ENV=development
+      - PORT=3002
+      - DB_HOST=product-db
+      - DB_PORT=5432
+      - DB_NAME=product_service_db
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
+    depends_on:
+      - product-db
+    networks:
+      - microservices-network
+
+  # Product Service Database
+  product-db:
+    image: postgres:14-alpine
+    container_name: product-db
+    ports:
+      - "5434:5432"
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=product_service_db
+    volumes:
+      - product-db-data:/var/lib/postgresql/data
+    networks:
+      - microservices-network
+
+  # Cart Service
+  cart-service:
+    build:
+      context: ./services/cart-service
+    container_name: cart-service
+    ports:
+      - "3003:3003"
+    environment:
+      - NODE_ENV=development
+      - PORT=3003
+      - DB_HOST=cart-db
+      - DB_PORT=5432
+      - DB_NAME=cart_service_db
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
+      - PRODUCT_SERVICE_URL=http://product-service:3002
+    depends_on:
+      - cart-db
+      - product-service
+    networks:
+      - microservices-network
+
+  # Cart Service Database
+  cart-db:
+    image: postgres:14-alpine
+    container_name: cart-db
+    ports:
+      - "5435:5432"
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=cart_service_db
+    volumes:
+      - cart-db-data:/var/lib/postgresql/data
+    networks:
+      - microservices-network
+
+  # Order Service
+  order-service:
+    build:
+      context: ./services/order-service
+    container_name: order-service
+    ports:
+      - "3004:3004"
+    environment:
+      - NODE_ENV=development
+      - PORT=3004
+      - DB_HOST=order-db
+      - DB_PORT=5432
+      - DB_NAME=order_service_db
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
+      - PRODUCT_SERVICE_URL=http://product-service:3002
+      - USER_SERVICE_URL=http://user-service:3001
+      - CART_SERVICE_URL=http://cart-service:3003
+      - METRICS_ENABLED=true
+    depends_on:
+      - order-db
+      - product-service
+      - user-service
+      - cart-service
+    networks:
+      - microservices-network
+
+  # Order Service Database
+  order-db:
+    image: postgres:14-alpine
+    container_name: order-db
+    ports:
+      - "5436:5432"
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=order_service_db
+    volumes:
+      - order-db-data:/var/lib/postgresql/data
+    networks:
+      - microservices-network
+
+  # Frontend
+  frontend:
+    build:
+      context: ./frontend
+    container_name: frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - api-gateway
+    networks:
+      - microservices-network
+
+networks:
+  microservices-network:
+    driver: bridge
+
+volumes:
+  user-db-data:
+  product-db-data:
+  cart-db-data:
+  order-db-data:
